@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Balance - Bank Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative; overflow: hidden;
+        }
+        body::before {
+            content: ''; position: absolute; width: 100%; height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            animation: float 15s ease-in-out infinite;
+        }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
+        .shape { position: absolute; opacity: 0.1; animation: rotate 20s linear infinite; }
+        .shape-1 { top: 10%; left: 10%; width: 80px; height: 80px; background: white; border-radius: 50%; }
+        .shape-2 { top: 70%; left: 80%; width: 120px; height: 120px; background: white; border-radius: 20px; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .container { position: relative; z-index: 10; width: 100%; max-width: 550px; padding: 20px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; color: white; }
+        .logo-container { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            width: 50px; height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+            font-size: 24px; color: white; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .logo-text { font-size: 18px; font-weight: 600; }
+        .back-btn {
+            padding: 8px 16px; border-radius: 20px; border: none;
+            background: rgba(255,255,255,0.2); color: #fff; cursor: pointer;
+            font-size: 13px; backdrop-filter: blur(5px); transition: background 0.3s, transform 0.2s;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+        .card {
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 30px 35px; margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            color: #333; font-size: 24px; margin-bottom: 10px;
+            text-align: center; position: relative; padding-bottom: 12px;
+        }
+        h2::after {
+            content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 80px; height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+        }
+        .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; color: #555; font-weight: 500; font-size: 14px; }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .input-icon { position: absolute; left: 12px; color: #999; font-size: 16px; }
+        input {
+            width: 100%; padding: 10px 12px 10px 38px; border-radius: 10px;
+            border: 2px solid #e0e0e0; font-size: 14px; transition: all 0.3s;
+        }
+        input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15); }
+        .message {
+            border-radius: 10px; padding: 10px 12px; margin-bottom: 15px;
+            font-size: 14px; display: none;
+        }
+        .message.error { background: #ffe6e6; color: #b40000; border-left: 4px solid #b40000; }
+        .btn {
+            width: 100%; margin-top: 10px; padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 10px;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
+        .btn-text { display: flex; align-items: center; justify-content: center; gap: 10px; }
+        
+        /* Balance Display Card */
+        #balanceCard {
+            display: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 35px;
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .account-info { font-size: 14px; opacity: 0.9; margin-bottom: 8px; }
+        .customer-name { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
+        .balance-label { font-size: 14px; opacity: 0.8; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .balance-amount {
+            font-size: 48px; font-weight: bold; margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .account-type-badge {
+            display: inline-block; padding: 6px 16px; border-radius: 20px;
+            background: rgba(255,255,255,0.2); font-size: 13px; font-weight: 600;
+            backdrop-filter: blur(5px);
+        }
+        .check-another {
+            margin-top: 25px; padding: 10px 20px;
+            background: rgba(255,255,255,0.2); color: white;
+            border: 2px solid rgba(255,255,255,0.3); border-radius: 8px;
+            cursor: pointer; font-size: 14px; font-weight: 600;
+            transition: all 0.3s;
+        }
+        .check-another:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+        @media (max-width: 640px) { .container { padding: 15px; } .card { padding: 25px 20px; } .balance-amount { font-size: 36px; } }
+    </style>
+</head>
+<body>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="container">
+        <div class="top-bar">
+            <div class="logo-container">
+                <div class="logo-icon"><i class="fas fa-university"></i></div>
+                <div class="logo-text">Bank Management System</div>
+            </div>
+            <button class="back-btn" onclick="window.location.href='Dashboard.html'">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+        </div>
+        
+        <!-- Search Card -->
+        <div class="card" id="searchCard">
+            <h2>Check Balance</h2>
+            <p class="subtitle">Enter account number to check balance</p>
+            <div id="msgBox" class="message"></div>
+            <form id="balanceForm" method="post" action="checkBalance">
+                <div class="form-group">
+                    <label for="accNo">Account Number</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-hashtag input-icon"></i>
+                        <input type="text" id="accNo" name="account_number" required autofocus>
+                    </div>
+                </div>
+                <button type="submit" class="btn">
+                    <span class="btn-text">
+                        <i class="fas fa-search"></i>
+                        <span>Check Balance</span>
+                    </span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Balance Display Card -->
+        <div class="card" id="balanceCard">
+            <div class="account-info">Account Number: <span id="dispAccNo"></span></div>
+            <div class="customer-name"><i class="fas fa-user-circle"></i> <span id="dispName"></span></div>
+            <div class="balance-label">Current Balance</div>
+            <div class="balance-amount" id="dispBalance">₹0.00</div>
+            <div class="account-type-badge" id="dispType">Savings</div>
+            <button class="check-another" onclick="window.location.href='check_balance.html'">
+                <i class="fas fa-redo"></i> Check Another Account
+            </button>
+        </div>
+    </div>
+    <script>
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const msgBox = document.getElementById('msgBox');
+            const searchCard = document.getElementById('searchCard');
+            const balanceCard = document.getElementById('balanceCard');
+            
+            if (params.get('success') === '1') {
+                // Show balance card
+                searchCard.style.display = 'none';
+                balanceCard.style.display = 'block';
+                
+                document.getElementById('dispAccNo').textContent = params.get('accNo') || '-';
+                document.getElementById('dispName').textContent = decodeURIComponent(params.get('name') || '-');
+                document.getElementById('dispType').textContent = decodeURIComponent(params.get('type') || 'Savings');
+                
+                const balance = parseFloat(params.get('balance') || 0);
+                document.getElementById('dispBalance').textContent = '₹' + balance.toFixed(2);
+                
+            } else if (params.get('error')) {
+                msgBox.className = 'message error';
+                msgBox.style.display = 'block';
+                msgBox.textContent = params.get('error') === 'notfound' ?
+                    'Account not found. Please check the account number.' :
+                    'Error occurred. Please try again.';
+            }
+        });
+    </script>
+</body>
+</html>
