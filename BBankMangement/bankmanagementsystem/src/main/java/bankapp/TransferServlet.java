@@ -70,7 +70,7 @@ public class TransferServlet extends HttpServlet {
 
             try {
                 // Check FROM account and balance
-                String selectSql = "SELECT balance FROM customers WHERE account_number = ?";
+                String selectSql = "SELECT balance FROM customers WHERE account_number = ? FOR UPDATE";
                 double fromBalance;
                 try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
                     ps.setString(1, fromAcc);
