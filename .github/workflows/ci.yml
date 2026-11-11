@@ -35,3 +35,22 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress clean package -DskipTests
       - name: Build container image
         run: docker build --file Dockerfile --tag bank-management-system:ci .
+      - name: Test container, database and admin flow
+        env:
+          DB_PASSWORD: bank-ci-app-password
+          MYSQL_ROOT_PASSWORD: bank-ci-root-password
+        run: |
+          printf 'DB_PASSWORD=%s\nMYSQL_ROOT_PASSWORD=%s\nAPP_PORT=8080\n' "$DB_PASSWORD" "$MYSQL_ROOT_PASSWORD" > .env
+          docker compose up --build -d
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/login.html >/dev/null; then break; fi
+            sleep 3
+          done
+          curl -fsS http://127.0.0.1:8080/login.html >/dev/null
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/register -d 'username=ciadmin&password=StrongPass123&confirm_password=StrongPass123')
+          test "$status" = "302"
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/login -d 'username=ciadmin&password=StrongPass123')
+          test "$status" = "302"
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/register -d 'username=attacker&password=StrongPass123&confirm_password=StrongPass123')
+          test "$status" = "403"
+          docker compose down -v
