@@ -1,6 +1,6 @@
 # Bank Management System
 
-A Java-based web application for managing bank customers and common account operations. The project uses Java Servlets, JDBC and MySQL, with a browser-based interface.
+A Java 17 web application for managing customers and common account operations. It uses Jakarta Servlets, JDBC, MySQL and a browser-based interface.
 
 ## Features
 
@@ -17,95 +17,89 @@ A Java-based web application for managing bank customers and common account oper
 |---|---|
 | Language | Java 17 |
 | Web | Jakarta Servlets 5 |
-| Database | MySQL |
+| Server | Jetty 11 |
+| Database | MySQL 8.4 |
 | Data access | JDBC |
 | Authentication | BCrypt |
-| Build | Maven |
-| Servlet container | Jetty 11 |
+| Build / deployment | Maven, Docker |
+
+## Run with Docker (recommended)
+
+Requirements: Docker Desktop with Docker Compose.
+
+1. Clone the repository and open its root directory.
+2. Create your private environment file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Edit `.env` and set two different strong random passwords for `DB_PASSWORD` and `MYSQL_ROOT_PASSWORD`.
+4. Build and start the application:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+5. Open [http://localhost:8080](http://localhost:8080).
+6. Register the first admin at `/register.html`, then sign in.
+
+The Compose stack starts MySQL, waits for its health check, initializes the `BankDB` schema from `database/init.sql`, and then starts Jetty. Database data persists in the `bank_data` Docker volume.
+
+To stop the services:
+
+```bash
+docker compose down
+```
+
+To stop and delete the local database volume (this permanently deletes local test data):
+
+```bash
+docker compose down -v
+```
+
+Never commit `.env` or publish database passwords.
+
+## Run locally without Docker
+
+Requirements: JDK 17, Maven 3.8+ and MySQL 8+.
+
+1. Enter the application directory:
+
+   ```bash
+   cd BBankMangement/bankmanagementsystem
+   ```
+
+2. Create `src/main/resources/db.properties` from `db.properties.example` and fill in your local MySQL details. Alternatively set `DB_URL`, `DB_USERNAME` and `DB_PASSWORD` environment variables.
+3. Create the schema using the root-level `database/init.sql` or run the included `setup-database.sh` script with a MySQL administrator.
+4. Start the application:
+
+   ```bash
+   mvn clean package
+   mvn jetty:run
+   ```
+
+5. Open [http://localhost:8080](http://localhost:8080), register an admin and log in.
 
 ## Project structure
 
 ```text
-BBankMangement/bankmanagementsystem/
-├── src/main/java/bankapp/       # Servlets and application classes
-├── src/main/resources/          # Database configuration
-├── src/main/webapp/             # Web pages and web configuration
-├── setup-database.sh            # Creates the database schema
-└── pom.xml                      # Maven configuration
+.
+├── Dockerfile
+├── docker-compose.yml
+├── database/init.sql
+└── BBankMangement/bankmanagementsystem/
+    ├── pom.xml
+    └── src/main/
+        ├── java/bankapp/
+        ├── resources/db.properties.example
+        └── webapp/
 ```
 
-## Run locally
+## CI
 
-### Requirements
+GitHub Actions builds the Java 17 WAR on pushes and pull requests. The workflow checks compilation and packaging; it does not prove that a hosted database or live deployment is configured.
 
-- JDK 17
-- MySQL 8 or later
-- Maven 3.8+
+## Security and scope
 
-### 1. Open the application directory
-
-```bash
-cd BBankMangement/bankmanagementsystem
-```
-
-### 2. Configure the database
-
-Create your local configuration from the example:
-
-```bash
-cp src/main/resources/db.properties.example src/main/resources/db.properties
-```
-
-Edit `src/main/resources/db.properties` with your local MySQL connection details:
-
-```properties
-db.url=jdbc:mysql://localhost:3306/BankDB
-db.username=your_database_username
-db.password=your_database_password
-```
-
-Keep this file private. It is intentionally excluded from version control.
-
-### 3. Create the database tables
-
-```bash
-chmod +x setup-database.sh
-./setup-database.sh
-```
-
-The script asks for a MySQL account that has permission to create the database and tables. It does not create a default admin account.
-
-### 4. Create an admin account
-
-Compile the application and build its dependency classpath:
-
-```bash
-mvn compile dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
-java -cp "target/classes:$(cat target/classpath.txt)" bankapp.CreateAdminUser
-```
-
-Choose your own admin username and password when prompted.
-
-### 5. Start the application
-
-```bash
-mvn jetty:run
-```
-
-Open [http://localhost:8080](http://localhost:8080).
-
-## Security notes
-
-- Admin passwords are stored using BCrypt hashing.
-- Database operations use JDBC; parameterized queries are used in the authentication and admin-creation flows.
-- Do not use real banking credentials or personal financial data when testing this academic project.
-- Use a private local database and unique credentials.
-- This project is an educational demonstration, not production banking software.
-
-## Current scope and limitations
-
-This repository demonstrates core banking workflows for learning Java web development and database integration. It has not been independently audited or certified for real financial use.
-
-## Author
-
-Vishal Patel
+This is an educational project, not production banking software. Do not use real financial data. Before any public production deployment, add CSRF protection, tighten admin registration, audit authorization and session handling, use HTTPS, and review transaction concurrency and input validation. Use unique secrets and restrict database network access.
