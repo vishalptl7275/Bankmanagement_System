@@ -1,58 +1,53 @@
-#!/bin/bash
-# MySQL Connection Tester and Setup Script
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-echo "=== MySQL Database Setup for Bank Management System ==="
-echo ""
-echo "This script will help you:"
-echo "1. Test your MySQL connection"
-echo "2. Create the BankDB database if needed"
-echo "3. Create necessary tables"
-echo "4. Create an admin user"
-echo ""
+echo "=== Bank Management System: database setup ==="
+echo
 
-# Find MySQL
-MYSQL_CMD="/usr/local/mysql-9.4.0-macos15-arm64/bin/mysql"
-
-if [ ! -f "$MYSQL_CMD" ]; then
-    echo "ERROR: MySQL not found at $MYSQL_CMD"
-    echo "Please update MYSQL_CMD variable in this script with your MySQL path"
-    exit 1
+MYSQL_CMD="${MYSQL_CMD:-$(command -v mysql || true)}"
+if [[ -z "$MYSQL_CMD" ]]; then
+  echo "Error: MySQL client 'mysql' was not found."
+  echo "Install MySQL and ensure the mysql command is available on PATH."
+  exit 1
 fi
 
-# Get credentials
-echo "Enter your MySQL root username (default: root):"
-read -r DB_USER
-DB_USER=${DB_USER:-root}
+read -r -p "MySQL administrator username [root]: " DB_USER
+DB_USER="${DB_USER:-root}"
+read -r -s -p "MySQL password: " DB_PASS
+echo
 
-echo "Enter your MySQL password:"
-read -s DB_PASS
+# Use a temporary, permission-restricted MySQL option file so the password
+# is not placed in the command-line arguments.
+MYSQL_CNF="$(mktemp)"
+chmod 600 "$MYSQL_CNF"
+cleanup() {
+  rm -f "$MYSQL_CNF"
+}
+trap cleanup EXIT
 
-echo ""
-echo "Testing connection..."
+escaped_pass="${DB_PASS//\\/\\\\}"
+escaped_pass="${escaped_pass//\"/\\\"}"
+{
+  printf '[client]\nuser="%s"\npassword="%s"\n' "$DB_USER" "$escaped_pass"
+} > "$MYSQL_CNF"
+unset DB_PASS
 
-# Test connection
-if $MYSQL_CMD -u "$DB_USER" -p"$DB_PASS" -e "SELECT 1;"  2>&1 | grep -q "ERROR"; then
-    echo "❌ Connection failed! Please check your credentials."
-    exit 1
+if ! "$MYSQL_CMD" --defaults-extra-file="$MYSQL_CNF" -e "SELECT 1;" >/dev/null 2>&1; then
+  echo "Error: Could not connect to MySQL. Check the username, password and server status."
+  exit 1
 fi
 
-echo "✅ Connection successful!"
-
-# Create database
-echo ""
-echo "Creating BankDB database..."
-$MYSQL_CMD -u "$DB_USER" -p"$DB_PASS" << 'SQLEOF'
+echo "Creating BankDB and required tables..."
+"$MYSQL_CMD" --defaults-extra-file="$MYSQL_CNF" <<'SQL'
 CREATE DATABASE IF NOT EXISTS BankDB;
 USE BankDB;
 
--- Create admins table
 CREATE TABLE IF NOT EXISTS admins (
     id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(100) NOT NULL
 );
 
---Create customers table
 CREATE TABLE IF NOT EXISTS customers (
     id INT PRIMARY KEY AUTO_INCREMENT,
     account_number VARCHAR(20) UNIQUE NOT NULL,
@@ -65,49 +60,10 @@ CREATE TABLE IF NOT EXISTS customers (
     account_type VARCHAR(20) DEFAULT 'Savings',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+SQL
 
-SELECT 'Database and tables created successfully!' as status;
-SQLEOF
-
-# Update db.properties
-echo ""
-echo "Updating db.properties file..."
-cat > /Users/pegasus/Desktop/BBankMangement/bankmanagementsystem/src/main/resources/db.properties << EOF
-db.url=jdbc:mysql://localhost:3306/BankDB
-db.username=$DB_USER
-db.password=$DB_PASS
-EOF
-
-echo "✅ db.properties updated!"
-
-# Create admin user
-echo ""
-echo "Would you like to create an admin user now? (y/n)"
-read -r CREATE_ADMIN
-
-if [ "$CREATE_ADMIN" = "y" ] || [ "$CREATE_ADMIN" = "Y" ]; then
-    echo "Enter admin username:"
-    read -r ADMIN_USER
-    
-    echo "Enter admin password:"
-    read -s ADMIN_PASS
-    
-    # BCrypt hash for 'admin123' as fallback
-    HASHED='$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
-    
-    $MYSQL_CMD -u "$DB_USER" -p"$DB_PASS" BankDB << SQLEOF2
-INSERT INTO admins (username, password) VALUES ('$ADMIN_USER', '$HASHED');
-SELECT 'Admin user created!' as status;
-SQLEOF2
-    
-    echo ""
-    echo "✅ SETUP COMPLETE!"
-    echo ""
-    echo "===================="
-    echo "Your login credentials:"
-    echo "Username: $ADMIN_USER"
-    echo "Password: admin123"
-    echo "===================="
-    echo ""
-    echo "Access your application at: http://localhost:8080/login.html"
-fi
+echo
+echo "Database and tables are ready."
+echo "Next: configure src/main/resources/db.properties and create an admin with:"
+echo "  mvn compile dependency:build-classpath -Dmdep.outputFile=target/classpath.txt"
+echo '  java -cp "target/classes:$(cat target/classpath.txt)" bankapp.CreateAdminUser'
