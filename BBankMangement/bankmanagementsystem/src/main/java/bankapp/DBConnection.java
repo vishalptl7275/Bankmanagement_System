@@ -1,47 +1,55 @@
 package bankapp;
 
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Properties;
 
-public class DBConnection {
+/**
+ * Opens a MySQL connection using environment variables first, then a local
+ * db.properties file. Environment variables make container deployment safe.
+ */
+public final class DBConnection {
+    private DBConnection() {
+    }
 
-    public static Connection getConnection() {
-        Connection con = null;
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+    public static Connection getConnection() throws java.sql.SQLException {
+        String url = System.getenv("DB_URL");
+        String username = System.getenv("DB_USERNAME");
+        String password = System.getenv("DB_PASSWORD");
 
-            java.util.Properties props = new java.util.Properties();
-            try (java.io.InputStream input = DBConnection.class.getClassLoader().getResourceAsStream("db.properties")) {
-                if (input == null) {
-                    System.err.println("ERROR: Unable to find db.properties file in classpath");
-                    System.err.println("Please ensure db.properties exists in src/main/resources/");
-                    return null;
+        if (isBlank(url) || isBlank(username) || password == null) {
+            Properties properties = new Properties();
+            try (InputStream input = DBConnection.class.getClassLoader()
+                    .getResourceAsStream("db.properties")) {
+                if (input != null) {
+                    properties.load(input);
                 }
-                props.load(input);
+            } catch (java.io.IOException e) {
+                throw new java.sql.SQLException("Could not read db.properties", e);
             }
 
-            String url = props.getProperty("db.url");
-            String username = props.getProperty("db.username");
-            String password = props.getProperty("db.password");
-
-            if (url == null || username == null || password == null) {
-                System.err.println("ERROR: Database properties are incomplete");
-                return null;
+            if (isBlank(url)) {
+                url = properties.getProperty("db.url");
             }
-
-            con = DriverManager.getConnection(url, username, password);
-
-            if (con != null) {
-                System.out.println("Database connection established successfully");
+            if (isBlank(username)) {
+                username = properties.getProperty("db.username");
             }
-
-        } catch (ClassNotFoundException e) {
-            System.err.println("ERROR: MySQL JDBC Driver not found: " + e.getMessage());
-        } catch (java.sql.SQLException e) {
-            System.err.println("ERROR: Database connection failed: " + e.getMessage());
-        } catch (Exception e) {
-            System.err.println("ERROR: Unexpected error during database connection: " + e.getMessage());
+            if (password == null) {
+                password = properties.getProperty("db.password");
+            }
         }
-        return con;
+
+        if (isBlank(url) || isBlank(username) || password == null) {
+            throw new java.sql.SQLException(
+                    "Database configuration is missing. Set DB_URL, DB_USERNAME and DB_PASSWORD, "
+                    + "or provide src/main/resources/db.properties.");
+        }
+
+        return DriverManager.getConnection(url, username, password);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }
