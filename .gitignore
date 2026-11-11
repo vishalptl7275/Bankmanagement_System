@@ -1,0 +1,15 @@
+# Java / Maven build output
+**/target/
+**/build/
+*.class
+
+# Local database credentials
+**/src/main/resources/db.properties
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+
+# Logs
+*.log
