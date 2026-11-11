@@ -1,0 +1,35 @@
+name: Bank Management System CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BBankMangement/bankmanagementsystem/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'database/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'BBankMangement/bankmanagementsystem/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'database/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Build WAR
+        working-directory: BBankMangement/bankmanagementsystem
+        run: mvn --batch-mode --no-transfer-progress clean package -DskipTests
