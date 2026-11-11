@@ -52,7 +52,7 @@ public class CreateAdminUser {
                 if (rows > 0) {
                     System.out.println("\n✅ SUCCESS! Admin user created:");
                     System.out.println("   Username: " + username);
-                    System.out.println("   Password: " + password);
+                    System.out.println("   Password: [hidden]");
                     System.out.println("\nYou can now login at: http://localhost:8080/login.html");
                 } else {
                     System.err.println("ERROR: Failed to create admin user.");
