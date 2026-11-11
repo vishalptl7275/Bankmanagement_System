@@ -65,6 +65,17 @@ public class RegisterServlet extends HttpServlet {
                 return;
             }
 
+            // Public registration is only permitted for the first administrator.
+            // Once an admin exists, new accounts must be created by an authenticated admin.
+            try (PreparedStatement countStatement = conn.prepareStatement("SELECT COUNT(*) FROM admins");
+                    java.sql.ResultSet countResult = countStatement.executeQuery()) {
+                if (countResult.next() && countResult.getInt(1) > 0) {
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                            "Administrator registration is closed. Ask an existing administrator.");
+                    return;
+                }
+            }
+
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, username.trim());
                 ps.setString(2, hashedPassword);
