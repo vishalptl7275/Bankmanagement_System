@@ -1,9 +1,10 @@
 package bankapp;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import jakarta.servlet.ServletException;
@@ -15,83 +16,44 @@ import jakarta.servlet.http.HttpSession;
 
 @WebServlet("/deposit")
 public class DepositServlet extends HttpServlet {
-
     @Override
-    protected void doPost(HttpServletRequest request,
-            HttpServletResponse response)
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-
-        // Session check
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute(Constants.SESSION_ADMIN_USER) == null) {
             response.sendRedirect("login.html");
             return;
         }
 
-        String accNo = request.getParameter("account_number");
-        String amtStr = request.getParameter("amount");
-        String desc = request.getParameter("description");
-
-        // Validation
-        if (accNo == null || accNo.trim().isEmpty() || amtStr == null || amtStr.trim().isEmpty()) {
+        String account = request.getParameter("account_number");
+        String amountText = request.getParameter("amount");
+        if (account == null || account.isBlank() || amountText == null || amountText.isBlank()) {
             response.sendRedirect("deposit.html?error=empty");
             return;
         }
 
-        double amount;
+        BigDecimal amount;
         try {
-            amount = Double.parseDouble(amtStr);
-            if (amount <= 0) {
+            amount = new BigDecimal(amountText.trim()).setScale(2, RoundingMode.UNNECESSARY);
+            if (amount.signum() <= 0) {
                 response.sendRedirect("deposit.html?error=negative");
                 return;
             }
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException | ArithmeticException e) {
             response.sendRedirect("deposit.html?error=invalid_amount");
             return;
         }
 
-        try (Connection conn = DBConnection.getConnection()) {
-
-            if (conn == null) {
-                System.err.println("ERROR: Failed to get database connection in DepositServlet");
-                response.sendRedirect("deposit.html?error=db");
-                return;
-            }
-
-            // Check if account exists and get current balance
-            String selectSql = "SELECT balance FROM customers WHERE account_number = ?";
-            try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
-                ps.setString(1, accNo);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        System.out.println("Account not found: " + accNo);
-                        response.sendRedirect("deposit.html?error=notfound");
-                        return;
-                    }
-
-                    double currentBalance = rs.getDouble("balance");
-                    double newBalance = currentBalance + amount;
-
-                    // Update balance
-                    String updateSql = "UPDATE customers SET balance = ? WHERE account_number = ?";
-                    try (PreparedStatement updatePs = conn.prepareStatement(updateSql)) {
-                        updatePs.setDouble(1, newBalance);
-                        updatePs.setString(2, accNo);
-                        int rows = updatePs.executeUpdate();
-
-                        if (rows > 0) {
-                            System.out.println("Deposit successful for account " + accNo + ": ₹" + amount);
-                            response.sendRedirect("deposit.html?success=1&bal=" + newBalance);
-                        } else {
-                            System.err.println("ERROR: Failed to update balance for: " + accNo);
-                            response.sendRedirect("deposit.html?error=update_failed");
-                        }
-                    }
-                }
-            }
-
+        String sql = "UPDATE customers SET balance = balance + ? WHERE account_number = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setBigDecimal(1, amount);
+            statement.setString(2, account);
+            response.sendRedirect(statement.executeUpdate() == 1
+                    ? "deposit.html?success=1"
+                    : "deposit.html?error=notfound");
         } catch (SQLException e) {
-            System.err.println("ERROR: Database error in DepositServlet: " + e.getMessage());
+            getServletContext().log("Deposit failed", e);
             response.sendRedirect("deposit.html?error=db");
         }
     }
