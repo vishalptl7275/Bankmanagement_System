@@ -33,3 +33,5 @@ jobs:
       - name: Build WAR
         working-directory: BBankMangement/bankmanagementsystem
         run: mvn --batch-mode --no-transfer-progress clean package -DskipTests
+      - name: Build container image
+        run: docker build --file Dockerfile --tag bank-management-system:ci .
