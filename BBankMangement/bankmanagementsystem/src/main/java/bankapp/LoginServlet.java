@@ -52,6 +52,10 @@ public class LoginServlet extends HttpServlet {
 
                         // === BCrypt check ===
                         if (BCrypt.checkpw(password, storedPassword)) {
+                            HttpSession previousSession = request.getSession(false);
+                            if (previousSession != null) {
+                                previousSession.invalidate();
+                            }
                             HttpSession session = request.getSession(true);
                             session.setAttribute(Constants.SESSION_ADMIN_USER, username);
                             System.out.println("User logged in successfully: " + username);
